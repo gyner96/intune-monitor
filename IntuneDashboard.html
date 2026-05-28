@@ -471,7 +471,7 @@ async function fetchDevice(){
     const computer=document.getElementById('cfg-computer')?.value||'';
     const endpoint=computer
       ?`devices?$filter=displayName eq '${computer}'`
-      :'devices?$top=5&$orderby=approximateLastSignInDateTime desc';
+      :'devices?$top=5';
     const data=await callProxy(endpoint);
     const dev=data.value?.[0];
     if(dev){
