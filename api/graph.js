@@ -43,13 +43,22 @@ exports.handler = async function(event, context) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: tokenData.error_description || tokenData.error }) };
     }
 
-    const graphUrl = endpoint.startsWith("https://")
-      ? endpoint
-      : `https://graph.microsoft.com/v1.0/${endpoint}`;
+    // URL bestimmen: vollstaendige URL, beta/ Prefix, oder v1.0
+    let graphUrl;
+    if (endpoint.startsWith("https://")) {
+      graphUrl = endpoint;
+    } else if (endpoint.startsWith("beta/") || endpoint.startsWith("beta ")) {
+      graphUrl = `https://graph.microsoft.com/${endpoint}`;
+    } else {
+      graphUrl = `https://graph.microsoft.com/v1.0/${endpoint}`;
+    }
 
     const graphResp = await fetch(graphUrl, {
       method: method || "GET",
-      headers: { Authorization: `Bearer ${tokenData.access_token}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+        "Content-Type": "application/json"
+      },
       body: method === "POST" ? JSON.stringify(postBody) : undefined
     });
 
