@@ -498,7 +498,7 @@ async function fetchDevice(){
 async function fetchRemediations(){
   try{
     addLog('Remediations','Lade Remediation Scripts...','inf');
-    const data=await callProxy('deviceManagement/deviceHealthScripts?$select=displayName,id,lastModifiedDateTime,description');
+    const data=await callProxy('deviceManagement/deviceHealthScripts');
     const scripts=data.value||[];
     const c=document.getElementById('remediationList');c.innerHTML='';
     if(!scripts.length){c.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/></svg><p>Keine Remediations gefunden</p></div>';return;}
