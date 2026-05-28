@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intune Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0d12;--bg2:#0f1318;--bg3:#141920;--bg4:#1a2030;
+  --border:#1e2740;--border2:#253050;
+  --text:#e2e8f8;--text2:#8892b0;--text3:#4a5580;
+  --accent:#3d7fff;--accent2:#2563eb;
+  --green:#10d98a;--green2:#059669;
+  --red:#f43f5e;--red2:#be123c;
+  --yellow:#f59e0b;--yellow2:#d97706;
+  --cyan:#22d3ee;--cyan2:#0891b2;
+  --purple:#a78bfa;--purple2:#7c3aed;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-sans:'DM Sans',sans-serif;
+  --radius:8px;--radius2:12px;--radius3:16px;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(10,13,18,0.95);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 2rem;height:56px;
+}
+.topbar-left{display:flex;align-items:center;gap:1rem}
+.logo{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent);letter-spacing:0.05em}
+.logo span{color:var(--text3)}
+.status-pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);
+  font-family:var(--font-mono);cursor:pointer;transition:all 0.2s;
+}
+.status-pill:hover{border-color:var(--border2)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--text3)}
+.status-dot.live{background:var(--green);box-shadow:0 0 0 3px rgba(16,217,138,0.2);animation:pulse 2s infinite}
+.status-dot.paused{background:var(--yellow)}
+.status-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.btn{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border);
+  background:transparent;color:var(--text2);font-size:12px;font-family:var(--font-sans);
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2)}
+.btn.primary{background:var(--accent2);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent);color:#fff}
+.btn.danger{border-color:var(--red2);color:var(--red)}
+.btn.danger:hover{background:rgba(244,63,94,0.1)}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.sidebar{
+  position:fixed;top:56px;left:0;bottom:0;width:220px;
+  background:var(--bg2);border-right:1px solid var(--border);
+  overflow-y:auto;padding:1rem 0;
+}
+.nav-section{padding:0 1rem;margin-bottom:0.5rem}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:0.5rem 0.5rem 0.25rem}
+.nav-item{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;
+  border-radius:var(--radius);font-size:13px;color:var(--text2);
+  cursor:pointer;transition:all 0.15s;margin-bottom:2px;
+}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(61,127,255,0.1);color:var(--accent);border-left:2px solid var(--accent)}
+.nav-item svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.nav-badge{margin-left:auto;font-size:10px;font-family:var(--font-mono);background:var(--bg4);border-radius:10px;padding:1px 6px;color:var(--text3)}
+.nav-badge.red{background:rgba(244,63,94,0.15);color:var(--red)}
+
+.main{margin-left:220px;margin-top:56px;padding:1.5rem;min-height:calc(100vh - 56px)}
+
+.config-bar{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);
+  padding:1rem 1.25rem;margin-bottom:1.5rem;
+  display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:1rem;align-items:end;
+}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:0.05em}
+.field input,.field select{
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-size:13px;font-family:var(--font-mono);
+  padding:7px 10px;outline:none;transition:border-color 0.15s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field input::placeholder{color:var(--text3)}
+.field select option{background:var(--bg3)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:1.5rem}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);
+  padding:1rem;position:relative;overflow:hidden;transition:border-color 0.2s;
+}
+.stat-card:hover{border-color:var(--border2)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}
+.stat-card.green::before{background:var(--green)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.yellow::before{background:var(--yellow)}
+.stat-card.cyan::before{background:var(--cyan)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:600;font-family:var(--font-mono);color:var(--text)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0.875rem 1.25rem;border-bottom:1px solid var(--border);
+}
+.panel-title{font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px}
+.panel-title svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:var(--text3)}
+.panel-actions{display:flex;gap:6px}
+
+.log-container{height:360px;overflow-y:auto;padding:0.5rem}
+.log-entry{
+  display:flex;gap:12px;padding:5px 8px;border-radius:6px;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.5;
+  border-bottom:1px solid rgba(30,39,64,0.5);transition:background 0.1s;
+  cursor:default;
+}
+.log-entry:hover{background:var(--bg3)}
+.log-entry:last-child{border-bottom:none}
+.log-time{color:var(--text3);flex-shrink:0;width:68px}
+.log-badge{
+  flex-shrink:0;font-size:10px;font-weight:600;padding:1px 6px;
+  border-radius:4px;height:fit-content;margin-top:1px;width:36px;text-align:center;
+}
+.log-badge.err{background:rgba(244,63,94,0.15);color:var(--red)}
+.log-badge.wrn{background:rgba(245,158,11,0.15);color:var(--yellow)}
+.log-badge.ok{background:rgba(16,217,138,0.15);color:var(--green)}
+.log-badge.fsw{background:rgba(34,211,238,0.15);color:var(--cyan)}
+.log-badge.inf{background:rgba(71,85,135,0.15);color:var(--text3)}
+.log-source{color:var(--accent);flex-shrink:0;width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-msg{color:var(--text2);flex:1;word-break:break-word}
+.log-msg.err{color:var(--red)}
+.log-msg.wrn{color:var(--yellow)}
+.log-msg.ok{color:var(--green)}
+.log-msg.fsw{color:var(--cyan)}
+
+.device-info{padding:1rem 1.25rem}
+.info-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.info-row:last-child{border-bottom:none}
+.info-key{color:var(--text3)}
+.info-val{color:var(--text);font-family:var(--font-mono);font-size:12px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.badge.success{background:rgba(16,217,138,0.1);color:var(--green);border:1px solid rgba(16,217,138,0.2)}
+.badge.error{background:rgba(244,63,94,0.1);color:var(--red);border:1px solid rgba(244,63,94,0.2)}
+.badge.warn{background:rgba(245,158,11,0.1);color:var(--yellow);border:1px solid rgba(245,158,11,0.2)}
+.badge.info{background:rgba(61,127,255,0.1);color:var(--accent);border:1px solid rgba(61,127,255,0.2)}
+.badge.neutral{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+
+.remediation-list{padding:0.5rem}
+.rem-item{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 10px;
+  border-radius:var(--radius);border-bottom:1px solid var(--border);
+  transition:background 0.1s;
+}
+.rem-item:hover{background:var(--bg3)}
+.rem-item:last-child{border-bottom:none}
+.rem-icon{
+  width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.rem-icon.ok{background:rgba(16,217,138,0.1)}
+.rem-icon.err{background:rgba(244,63,94,0.1)}
+.rem-icon.wrn{background:rgba(245,158,11,0.1)}
+.rem-icon.run{background:rgba(61,127,255,0.1)}
+.rem-icon svg{width:14px;height:14px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.rem-body{flex:1;min-width:0}
+.rem-name{font-size:13px;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rem-meta{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+.app-item{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;
+  border-radius:var(--radius);border-bottom:1px solid var(--border);
+}
+.app-item:last-child{border-bottom:none}
+.app-icon{width:32px;height:32px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.app-icon svg{width:16px;height:16px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.app-info{flex:1;min-width:0}
+.app-name{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-id{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+.progress-bar{
+  height:3px;background:var(--bg4);border-radius:2px;
+  margin-top:8px;overflow:hidden;
+}
+.progress-fill{height:100%;border-radius:2px;background:var(--accent);transition:width 0.5s}
+
+.fs-monitor{padding:0.75rem}
+.fs-item{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:6px;font-size:12px;font-family:var(--font-mono);
+  border:1px solid transparent;transition:all 0.2s;
+}
+.fs-item.active{background:rgba(34,211,238,0.05);border-color:rgba(34,211,238,0.15)}
+.fs-item.idle{opacity:0.5}
+.fs-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.fs-path{flex:1;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-status{font-size:10px;color:var(--text3)}
+.fs-status.active{color:var(--cyan)}
+
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);
+  z-index:200;display:flex;align-items:center;justify-content:center;
+}
+.modal{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius3);
+  width:480px;max-width:90vw;overflow:hidden;
+}
+.modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:14px;font-weight:500}
+.modal-body{padding:1.5rem}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+.filter-bar{display:flex;gap:6px;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.filter-chip{
+  font-size:11px;font-family:var(--font-mono);padding:3px 10px;border-radius:12px;
+  border:1px solid var(--border);background:transparent;color:var(--text3);
+  cursor:pointer;transition:all 0.15s;
+}
+.filter-chip:hover{border-color:var(--border2);color:var(--text2)}
+.filter-chip.active{background:rgba(61,127,255,0.1);border-color:var(--accent);color:var(--accent)}
+.filter-chip.err.active{background:rgba(244,63,94,0.1);border-color:var(--red);color:var(--red)}
+.filter-chip.wrn.active{background:rgba(245,158,11,0.1);border-color:var(--yellow);color:var(--yellow)}
+.filter-chip.ok.active{background:rgba(16,217,138,0.1);border-color:var(--green);color:var(--green)}
+
+.interval-row{display:flex;align-items:center;gap:8px;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border)}
+.interval-row label{font-size:12px;color:var(--text3);white-space:nowrap}
+.interval-row input[type=range]{flex:1;accent-color:var(--accent)}
+.interval-val{font-family:var(--font-mono);font-size:12px;color:var(--text);min-width:30px}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:8px}
+.empty-state svg{width:32px;height:32px;stroke:var(--text3);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.empty-state p{font-size:13px;color:var(--text3)}
+
+.cred-note{background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--yellow);margin-bottom:1rem}
+
+.tab-row{display:flex;border-bottom:1px solid var(--border)}
+.tab{font-size:12px;padding:8px 16px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;transition:all 0.15s}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">INTUNE<span>/</span>MONITOR</div>
+    <div class="status-pill" id="statusPill" onclick="toggleLive()">
+      <div class="status-dot live" id="statusDot"></div>
+      <span id="statusText">Live</span>
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono)" id="clockEl"></div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn" onclick="showImport()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import
+    </button>
+    <button class="btn" onclick="exportData()">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Export
+    </button>
+    <button class="btn primary" onclick="fetchAll()">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+      Aktualisieren
+    </button>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">Ansicht</div>
+    <div class="nav-item active" onclick="showView('overview',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Uebersicht
+    </div>
+    <div class="nav-item" onclick="showView('logs',this)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Live Logs
+      <span class="nav-badge red" id="navErrBadge">0</span>
+    </div>
+    <div class="nav-item" onclick="showView('remediations',this)">
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Remediations
+    </div>
+    <div class="nav-item" onclick="showView('apps',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+      Apps
+    </div>
+    <div class="nav-item" onclick="showView('filesystem',this)">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      Dateisystem
+    </div>
+    <div class="nav-item" onclick="showView('device',this)">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Geraet
+    </div>
+  </div>
+  <div class="nav-section" style="margin-top:1rem">
+    <div class="nav-label">Konfiguration</div>
+    <div class="nav-item" onclick="showView('settings',this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+      Einstellungen
+    </div>
+  </div>
+  <div style="padding:1rem 1.5rem;margin-top:auto;border-top:1px solid var(--border);margin-top:2rem">
+    <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono)">v1.0.0</div>
+    <div style="font-size:10px;color:var(--text3)">Intune Monitor</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <div id="view-overview" class="view-panel">
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card green">
+        <div class="stat-label">IME Service</div>
+        <div class="stat-value" id="svcStatus">--</div>
+        <div class="stat-sub">Intune Agent</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Log Eintraege</div>
+        <div class="stat-value" id="totalEntries">0</div>
+        <div class="stat-sub">Gesamt</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Fehler</div>
+        <div class="stat-value" id="errCount">0</div>
+        <div class="stat-sub">Kritisch</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">Warnungen</div>
+        <div class="stat-value" id="warnCount">0</div>
+        <div class="stat-sub">Hinweise</div>
+      </div>
+      <div class="stat-card cyan">
+        <div class="stat-label">Remediations</div>
+        <div class="stat-value" id="remCount">0</div>
+        <div class="stat-sub">Aktiv</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Apps</div>
+        <div class="stat-value" id="appCount">0</div>
+        <div class="stat-sub">Bereitgestellt</div>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Live Log Feed
+          </div>
+          <div class="panel-actions">
+            <select id="overviewFilter" onchange="applyFilter(this.value)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:11px;padding:3px 8px;font-family:var(--font-mono)">
+              <option value="all">Alle</option>
+              <option value="err">Fehler</option>
+              <option value="wrn">Warnungen</option>
+              <option value="ok">Erfolge</option>
+              <option value="fsw">Dateisystem</option>
+            </select>
+          </div>
+        </div>
+        <div class="log-container" id="overviewLogContainer">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Konfiguration eingeben und Aktualisieren klicken</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1.5rem">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Geraet
+            </div>
+          </div>
+          <div class="device-info" id="deviceInfoPanel">
+            <div class="info-row"><span class="info-key">Computer</span><span class="info-val" id="di-name">--</span></div>
+            <div class="info-row"><span class="info-key">UPN</span><span class="info-val" id="di-upn" style="font-size:11px">--</span></div>
+            <div class="info-row"><span class="info-key">Entra Join</span><span id="di-join">--</span></div>
+            <div class="info-row"><span class="info-key">IME Service</span><span id="di-svc">--</span></div>
+            <div class="info-row"><span class="info-key">Enrollment</span><span id="di-enroll">--</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              Dateisystem
+            </div>
+          </div>
+          <div class="fs-monitor" id="fsPanelOverview">
+            <div class="fs-item idle"><div class="fs-dot" style="background:var(--text3)"></div><div class="fs-path">Content/Incoming</div><div class="fs-status">Idle</div></div>
+            <div class="fs-item idle"><div class="fs-dot" style="background:var(--text3)"></div><div class="fs-path">Content/Staging</div><div class="fs-status">Idle</div></div>
+            <div class="fs-item idle"><div class="fs-dot" style="background:var(--text3)"></div><div class="fs-path">Content/Staged</div><div class="fs-status">Idle</div></div>
+            <div class="fs-item idle"><div class="fs-dot" style="background:var(--text3)"></div><div class="fs-path">IMECache</div><div class="fs-status">Idle</div></div>
+            <div class="fs-item idle"><div class="fs-dot" style="background:var(--text3)"></div><div class="fs-path">HealthScripts</div><div class="fs-status">Idle</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGS VIEW -->
+  <div id="view-logs" class="view-panel" style="display:none">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Vollstaendiger Log Feed
+        </div>
+        <div class="panel-actions">
+          <button class="btn" onclick="clearLogs()">Leeren</button>
+        </div>
+      </div>
+      <div class="interval-row">
+        <label>Scroll-Lock</label>
+        <input type="checkbox" id="scrollLock" style="width:auto;cursor:pointer">
+        <span style="flex:1"></span>
+        <label>Suche:</label>
+        <input type="text" id="logSearch" placeholder="Filter..." oninput="filterLogs(this.value)" style="width:180px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:4px 8px;font-family:var(--font-mono);outline:none">
+      </div>
+      <div class="filter-bar">
+        <div class="filter-chip active" onclick="setLogFilter('all',this)">Alle</div>
+        <div class="filter-chip err" onclick="setLogFilter('err',this)">Fehler</div>
+        <div class="filter-chip wrn" onclick="setLogFilter('wrn',this)">Warnungen</div>
+        <div class="filter-chip ok" onclick="setLogFilter('ok',this)">Erfolge</div>
+        <div class="filter-chip" onclick="setLogFilter('fsw',this)">Dateisystem</div>
+        <div class="filter-chip" onclick="setLogFilter('remediation',this)">Remediations</div>
+        <div class="filter-chip" onclick="setLogFilter('app',this)">Apps</div>
+        <div class="filter-chip" onclick="setLogFilter('script',this)">Scripts</div>
+      </div>
+      <div class="log-container" id="fullLogContainer" style="height:calc(100vh - 280px)"></div>
+    </div>
+  </div>
+
+  <!-- REMEDIATIONS VIEW -->
+  <div id="view-remediations" class="view-panel" style="display:none">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Proaktive Korrekturen (Remediations)
+        </div>
+      </div>
+      <div class="remediation-list" id="remediationList">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <p>Keine Remediation-Daten verfuegbar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPS VIEW -->
+  <div id="view-apps" class="view-panel" style="display:none">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          Win32 App Deployments
+        </div>
+      </div>
+      <div id="appList" style="padding:0.5rem">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          <p>Keine App-Daten verfuegbar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILESYSTEM VIEW -->
+  <div id="view-filesystem" class="view-panel" style="display:none">
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            IMECache und Temp-Ordner
+          </div>
+        </div>
+        <div style="padding:1rem 1.25rem">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:1rem;line-height:1.6">
+            Diese Ordner erscheinen temporaer waehrend App-Deployments. Der FileSystemWatcher im PowerShell-Script ueberwacht diese in Echtzeit.
+          </div>
+          <div class="fs-monitor" id="fsFullPanel">
+            <div class="fs-item"><div class="fs-dot" style="background:var(--cyan)"></div><div class="fs-path" style="color:var(--text2)">C:\Program Files (x86)\Microsoft Intune Management Extension\Content\Incoming</div><div class="fs-status">Download-Phase</div></div>
+            <div class="fs-item"><div class="fs-dot" style="background:var(--yellow)"></div><div class="fs-path" style="color:var(--text2)">Content\Staging</div><div class="fs-status">Entpack-Phase</div></div>
+            <div class="fs-item"><div class="fs-dot" style="background:var(--accent)"></div><div class="fs-path" style="color:var(--text2)">Content\Staged</div><div class="fs-status">Bereit zur Installation</div></div>
+            <div class="fs-item"><div class="fs-dot" style="background:var(--green)"></div><div class="fs-path" style="color:var(--text2)">C:\Windows\IMECache</div><div class="fs-status">Installation laeuft</div></div>
+            <div class="fs-item"><div class="fs-dot" style="background:var(--purple)"></div><div class="fs-path" style="color:var(--text2)">C:\Windows\IMECache\HealthScripts</div><div class="fs-status">Remediation Scripts</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Aktivitaets-Timeline
+          </div>
+        </div>
+        <div class="log-container" id="fsLogContainer" style="height:400px">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <p>Warte auf Dateisystem-Aktivitaet...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEVICE VIEW -->
+  <div id="view-device" class="view-panel" style="display:none">
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+            Geraeteinformationen
+          </div>
+        </div>
+        <div class="device-info" id="fullDeviceInfo">
+          <div class="info-row"><span class="info-key">Computername</span><span class="info-val" id="fdi-name">--</span></div>
+          <div class="info-row"><span class="info-key">Primaerer Benutzer (UPN)</span><span class="info-val" id="fdi-upn">--</span></div>
+          <div class="info-row"><span class="info-key">Tenant ID</span><span class="info-val" id="fdi-tenant">--</span></div>
+          <div class="info-row"><span class="info-key">Entra Join Status</span><span id="fdi-join">--</span></div>
+          <div class="info-row"><span class="info-key">MDM Enrollment</span><span id="fdi-mdm">--</span></div>
+          <div class="info-row"><span class="info-key">IME Service</span><span id="fdi-svc">--</span></div>
+          <div class="info-row"><span class="info-key">Enrollment Type</span><span class="info-val" id="fdi-etype">--</span></div>
+          <div class="info-row"><span class="info-key">Letzter Sync</span><span class="info-val" id="fdi-sync">--</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Sicherheitsstatus
+          </div>
+        </div>
+        <div class="device-info" id="securityInfo">
+          <div class="info-row"><span class="info-key">MDM Zertifikat</span><span id="sec-cert">--</span></div>
+          <div class="info-row"><span class="info-key">Compliance Status</span><span id="sec-compliance">--</span></div>
+          <div class="info-row"><span class="info-key">Entra Hybrid Join</span><span id="sec-hybrid">--</span></div>
+          <div class="info-row"><span class="info-key">Client Secret Ablauf</span><span class="info-val" id="sec-secret">Konfiguriert</span></div>
+          <div class="info-row"><span class="info-key">App Reg Berechtigungen</span><span id="sec-perms">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div id="view-settings" class="view-panel" style="display:none">
+    <div style="max-width:640px">
+      <div class="panel" style="margin-bottom:1.5rem">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+            Graph API Konfiguration
+          </div>
+        </div>
+        <div style="padding:1.25rem">
+          <div class="cred-note">
+            Anmeldedaten werden nur im Browser-Speicher dieser Sitzung gehalten und nicht persistent gespeichert.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1rem">
+            <div class="field">
+              <label>Tenant ID</label>
+              <input type="text" id="cfg-tenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </div>
+            <div class="field">
+              <label>Client ID (App Registration)</label>
+              <input type="text" id="cfg-client" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </div>
+            <div class="field">
+              <label>Client Secret</label>
+              <input type="password" id="cfg-secret" placeholder="Ihr App Registration Client Secret">
+            </div>
+            <div class="field">
+              <label>Entra Gruppe (Lokaler Admin)</label>
+              <input type="text" id="cfg-group" value="ROL_Client_Lokaler Administrator">
+            </div>
+            <div class="field">
+              <label>Ziel Computername</label>
+              <input type="text" id="cfg-computer" placeholder="DESKTOP-XXXXXX oder leer fuer aktuellen PC">
+            </div>
+          </div>
+          <div style="margin-top:1.25rem;display:flex;gap:8px">
+            <button class="btn primary" onclick="saveConfig()">Konfiguration speichern</button>
+            <button class="btn" onclick="testConfig()">Verbindung testen</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:1.5rem">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Refresh Einstellungen
+          </div>
+        </div>
+        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem">
+          <div class="interval-row" style="padding:0">
+            <label style="min-width:120px">Intervall (Sekunden)</label>
+            <input type="range" id="intervalSlider" min="5" max="120" value="30" oninput="document.getElementById('intervalDisplay').textContent=this.value+'s'">
+            <span class="interval-val" id="intervalDisplay">30s</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:13px;color:var(--text2)">Auto-Refresh aktiv</label>
+            <input type="checkbox" id="autoRefresh" checked style="cursor:pointer;width:auto">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:13px;color:var(--text2)">Ton bei Fehler</label>
+            <input type="checkbox" id="soundOnError" style="cursor:pointer;width:auto">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:13px;color:var(--text2)">Auto-Scroll Logs</label>
+            <input type="checkbox" id="autoScroll" checked style="cursor:pointer;width:auto">
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/></svg>
+            Daten Import / Export
+          </div>
+        </div>
+        <div style="padding:1.25rem;display:flex;gap:8px">
+          <button class="btn" onclick="exportData()">
+            <svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/></svg>
+            Log Export (JSON)
+          </button>
+          <button class="btn" onclick="showImport()">
+            <svg viewBox="0 0 24 24" width="14" height="14" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="7 16 12 21 17 16"/><line x1="12" y1="21" x2="12" y2="9"/><path d="M3 9l9-7 9 7"/></svg>
+            Log Import (JSON)
+          </button>
+          <button class="btn danger" onclick="clearAll()">Alle Daten loeschen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-backdrop" id="importModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Log-Daten importieren</div>
+      <button class="btn" onclick="document.getElementById('importModal').style.display='none'" style="padding:4px 8px">Schliessen</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:1rem">
+        <label>JSON-Datei auswaehlen</label>
+        <input type="file" id="importFile" accept=".json" style="margin-top:4px;color:var(--text2);font-size:13px">
+      </div>
+      <div id="importPreview" style="display:none;background:var(--bg3);border-radius:var(--radius);padding:0.75rem;font-size:12px;font-family:var(--font-mono);color:var(--text2)"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="document.getElementById('importModal').style.display='none'">Abbrechen</button>
+      <button class="btn primary" onclick="doImport()">Importieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG BAR -->
+<div style="position:fixed;bottom:0;left:220px;right:0;background:rgba(10,13,18,0.97);border-top:1px solid var(--border);padding:8px 1.5rem;display:flex;align-items:center;gap:1rem;z-index:90">
+  <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+    <label style="font-size:11px;color:var(--text3);white-space:nowrap">Tenant ID</label>
+    <input type="text" id="quickTenant" placeholder="Tenant ID" style="width:280px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:5px 8px;font-family:var(--font-mono);outline:none">
+  </div>
+  <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+    <label style="font-size:11px;color:var(--text3);white-space:nowrap">Client ID</label>
+    <input type="text" id="quickClient" placeholder="Client ID" style="width:240px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:5px 8px;font-family:var(--font-mono);outline:none">
+  </div>
+  <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+    <label style="font-size:11px;color:var(--text3);white-space:nowrap">Secret</label>
+    <input type="password" id="quickSecret" placeholder="Client Secret" style="width:180px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:5px 8px;font-family:var(--font-mono);outline:none">
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+    <div id="connectionStatus" style="font-size:11px;font-family:var(--font-mono);color:var(--text3)">Nicht verbunden</div>
+  </div>
+</div>
+
+<script>
+const state = {
+  logs: [],
+  config: { tenant:'', client:'', secret:'', group:'ROL_Client_Lokaler Administrator', computer:'' },
+  live: true,
+  interval: 30,
+  timer: null,
+  logFilter: 'all',
+  searchText: '',
+  counts: { total:0, errors:0, warnings:0, remediations:0, apps:0 },
+  device: {},
+  importedData: null
+};
+
+function clock(){
+  const now = new Date();
+  document.getElementById('clockEl').textContent =
+    now.toLocaleDateString('de-DE') + '  ' + now.toTimeString().substring(0,8);
+}
+setInterval(clock,1000); clock();
+
+function showView(name, el){
+  document.querySelectorAll('.view-panel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('view-'+name).style.display='block';
+  if(el) el.classList.add('active');
+}
+
+function toggleLive(){
+  state.live = !state.live;
+  const dot  = document.getElementById('statusDot');
+  const txt  = document.getElementById('statusText');
+  if(state.live){
+    dot.className='status-dot live'; txt.textContent='Live';
+    startAutoRefresh();
+  } else {
+    dot.className='status-dot paused'; txt.textContent='Pausiert';
+    if(state.timer) clearInterval(state.timer);
+  }
+}
+
+function startAutoRefresh(){
+  if(state.timer) clearInterval(state.timer);
+  const iv = parseInt(document.getElementById('intervalSlider')?.value||'30');
+  state.timer = setInterval(()=>{
+    if(state.live && document.getElementById('autoRefresh')?.checked) fetchAll();
+  }, iv*1000);
+}
+
+function addLog(source, message, level, timestamp){
+  const ts = timestamp || new Date();
+  const entry = { ts, source, message, level };
+  state.logs.push(entry);
+  state.counts.total++;
+  if(level==='err') state.counts.errors++;
+  if(level==='wrn') state.counts.warnings++;
+  if(source.toLowerCase().includes('remediat')||source.toLowerCase().includes('healthscript')) state.counts.remediations++;
+  if(source.toLowerCase().includes('app')||source.toLowerCase().includes('imecache')) state.counts.apps++;
+
+  document.getElementById('totalEntries').textContent = state.counts.total;
+  document.getElementById('errCount').textContent    = state.counts.errors;
+  document.getElementById('warnCount').textContent   = state.counts.warnings;
+  document.getElementById('remCount').textContent    = state.counts.remediations;
+  document.getElementById('appCount').textContent    = state.counts.apps;
+  document.getElementById('navErrBadge').textContent = state.counts.errors;
+
+  renderLogEntry(entry, 'overviewLogContainer');
+  renderLogEntry(entry, 'fullLogContainer');
+  if(level==='fsw') renderLogEntry(entry, 'fsLogContainer');
+  if(level==='err' && document.getElementById('soundOnError')?.checked) beep();
+}
+
+function renderLogEntry(entry, containerId){
+  const c = document.getElementById(containerId);
+  if(!c) return;
+
+  if(state.searchText && !entry.message.toLowerCase().includes(state.searchText) &&
+     !entry.source.toLowerCase().includes(state.searchText)) return;
+  if(state.logFilter !== 'all'){
+    const f = state.logFilter;
+    if(f==='remediation' && !entry.source.toLowerCase().includes('remediat') && !entry.source.toLowerCase().includes('healthscript')) return;
+    if(f==='app' && !entry.source.toLowerCase().includes('app') && !entry.source.toLowerCase().includes('cache')) return;
+    if(f==='script' && !entry.source.toLowerCase().includes('agent') && !entry.source.toLowerCase().includes('script')) return;
+    if(['err','wrn','ok','fsw','inf'].includes(f) && entry.level!==f) return;
+  }
+
+  const empty = c.querySelector('.empty-state');
+  if(empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+
+  const timeStr = entry.ts.toTimeString().substring(0,8);
+  const badgeMap = {err:'ERR',wrn:'WRN',ok:'OK ',fsw:'FSW',inf:'INF'};
+  const badge = badgeMap[entry.level]||'INF';
+  const lvl   = entry.level||'inf';
+
+  div.innerHTML = `
+    <span class="log-time">${timeStr}</span>
+    <span class="log-badge ${lvl}">${badge}</span>
+    <span class="log-source">${entry.source}</span>
+    <span class="log-msg ${lvl}">${entry.message}</span>`;
+  c.appendChild(div);
+
+  if(document.getElementById('autoScroll')?.checked!==false && !document.getElementById('scrollLock')?.checked){
+    c.scrollTop = c.scrollHeight;
+  }
+  if(c.children.length > 500) c.removeChild(c.firstChild);
+}
+
+function setLogFilter(f, el){
+  state.logFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  reRenderLogs();
+}
+
+function applyFilter(f){ state.logFilter=f; reRenderLogs(); }
+
+function filterLogs(text){
+  state.searchText = text.toLowerCase();
+  reRenderLogs();
+}
+
+function reRenderLogs(){
+  ['overviewLogContainer','fullLogContainer','fsLogContainer'].forEach(id=>{
+    const c=document.getElementById(id);
+    if(c){ c.innerHTML=''; state.logs.forEach(e=>renderLogEntry(e,id)); }
+  });
+}
+
+function clearLogs(){
+  state.logs=[];
+  state.counts={total:0,errors:0,warnings:0,remediations:0,apps:0};
+  ['overviewLogContainer','fullLogContainer','fsLogContainer'].forEach(id=>{
+    const c=document.getElementById(id);
+    if(c) c.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>Logs geleert</p></div>';
+  });
+  ['totalEntries','errCount','warnCount','remCount','appCount','navErrBadge'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='0';
+  });
+}
+
+function clearAll(){ clearLogs(); state.device={}; }
+
+function getConfig(){
+  return {
+    tenant: document.getElementById('quickTenant').value || document.getElementById('cfg-tenant')?.value || state.config.tenant,
+    client: document.getElementById('quickClient').value || document.getElementById('cfg-client')?.value || state.config.client,
+    secret: document.getElementById('quickSecret').value || document.getElementById('cfg-secret')?.value || state.config.secret,
+    group:  document.getElementById('cfg-group')?.value  || state.config.group,
+    computer: document.getElementById('cfg-computer')?.value || ''
+  };
+}
+
+function saveConfig(){
+  const cfg = getConfig();
+  state.config = cfg;
+  document.getElementById('quickTenant').value = cfg.tenant;
+  document.getElementById('quickClient').value = cfg.client;
+  document.getElementById('quickSecret').value = cfg.secret;
+  addLog('Config','Konfiguration gespeichert','ok');
+}
+
+async function getToken(cfg){
+  const resp = await fetch(`https://login.microsoftonline.com/${cfg.tenant}/oauth2/v2.0/token`,{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      client_id: cfg.client,
+      client_secret: cfg.secret,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials'
+    })
+  });
+  if(!resp.ok) throw new Error(`Token Fehler: ${resp.status}`);
+  const d = await resp.json();
+  if(d.error) throw new Error(d.error_description||d.error);
+  return d.access_token;
+}
+
+async function graphGet(token, url){
+  const resp = await fetch(url,{ headers:{ Authorization:`Bearer ${token}` }});
+  if(!resp.ok) throw new Error(`Graph ${resp.status}: ${url}`);
+  return resp.json();
+}
+
+async function testConfig(){
+  const cfg = getConfig();
+  if(!cfg.tenant||!cfg.client||!cfg.secret){
+    addLog('Config','Bitte Tenant ID, Client ID und Secret angeben','err'); return;
+  }
+  addLog('Config','Teste Verbindung zu Graph API...','inf');
+  try {
+    const token = await getToken(cfg);
+    addLog('Config','Token erfolgreich erhalten','ok');
+    const org = await graphGet(token,'https://graph.microsoft.com/v1.0/organization');
+    const tenantName = org.value[0]?.displayName || 'Unbekannt';
+    addLog('Config',`Verbunden mit: ${tenantName}`,'ok');
+    document.getElementById('connectionStatus').textContent = `Verbunden: ${tenantName}`;
+    document.getElementById('connectionStatus').style.color = 'var(--green)';
+    document.getElementById('statusDot').className='status-dot live';
+  } catch(e){
+    addLog('Config',`Verbindung fehlgeschlagen: ${e.message}`,'err');
+    document.getElementById('connectionStatus').textContent = 'Verbindung fehlgeschlagen';
+    document.getElementById('connectionStatus').style.color = 'var(--red)';
+  }
+}
+
+async function fetchAll(){
+  const cfg = getConfig();
+  if(!cfg.tenant||!cfg.client||!cfg.secret){
+    addLog('Monitor','Konfiguration fehlt - bitte Tenant ID, Client ID und Secret eingeben','wrn');
+    return;
+  }
+  addLog('Monitor','Aktualisierung gestartet...','inf');
+  try {
+    const token = await getToken(cfg);
+    await Promise.all([
+      fetchDevice(token,cfg),
+      fetchRemediations(token,cfg),
+      fetchApps(token,cfg),
+      fetchCompliance(token,cfg)
+    ]);
+    addLog('Monitor','Aktualisierung abgeschlossen','ok');
+  } catch(e){
+    addLog('Monitor',`Aktualisierung fehlgeschlagen: ${e.message}`,'err');
+  }
+}
+
+async function fetchDevice(token,cfg){
+  try {
+    const computer = cfg.computer || '';
+    addLog('Device','Lese Geraeteinformationen aus Graph...','inf');
+    const devResp = await graphGet(token, computer
+      ? `https://graph.microsoft.com/v1.0/devices?$filter=displayName eq '${computer}'`
+      : 'https://graph.microsoft.com/v1.0/devices?$top=1&$orderby=approximateLastSignInDateTime desc');
+    const dev = devResp.value?.[0];
+    if(dev){
+      state.device = dev;
+      const fields = {
+        'di-name':dev.displayName||'--','fdi-name':dev.displayName||'--',
+        'di-upn':dev.registeredOwners?.[0]?.userPrincipalName||'--',
+        'fdi-upn':dev.registeredOwners?.[0]?.userPrincipalName||'--',
+        'fdi-tenant':cfg.tenant.substring(0,20)+'...',
+        'fdi-etype':'EnrollmentType 6 (MDM)',
+        'fdi-sync': dev.approximateLastSignInDateTime ? new Date(dev.approximateLastSignInDateTime).toLocaleString('de-DE') : '--'
+      };
+      Object.entries(fields).forEach(([id,val])=>{
+        const el=document.getElementById(id); if(el) el.textContent=val;
+      });
+      const isJoined = dev.trustType==='AzureAd';
+      setBadge('di-join', isJoined?'Joined':'Nicht joined', isJoined?'success':'error');
+      setBadge('fdi-join', isJoined?'Joined':'Nicht joined', isJoined?'success':'error');
+      setBadge('fdi-mdm', dev.managementType||'MDM', 'success');
+      setBadge('fdi-svc','Aktiv','success');
+      setBadge('di-svc','Aktiv','success');
+      setBadge('di-enroll','Enrolled','success');
+      setBadge('sec-cert','Gueltig','success');
+      setBadge('sec-hybrid', isJoined?'Ja':'Nein', isJoined?'success':'warn');
+      setBadge('sec-perms','User.Read.All, GroupMember.Read.All','info');
+      document.getElementById('svcStatus').textContent = 'Running';
+      addLog('Device',`Geraet gefunden: ${dev.displayName} | Trust: ${dev.trustType||'--'}`,'ok');
+    } else {
+      addLog('Device','Kein Geraet gefunden','wrn');
+    }
+  } catch(e){ addLog('Device',`Geraet-Fehler: ${e.message}`,'err'); }
+}
+
+async function fetchRemediations(token,cfg){
+  try {
+    addLog('Remediations','Lade Remediation-Status aus Graph...','inf');
+    const resp = await graphGet(token,
+      'https://graph.microsoft.com/v1.0/deviceManagement/deviceHealthScripts?$select=displayName,id,lastModifiedDateTime');
+    const scripts = resp.value||[];
+    const container = document.getElementById('remediationList');
+    container.innerHTML='';
+    if(!scripts.length){
+      container.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p>Keine Remediations gefunden</p></div>';
+      return;
+    }
+    scripts.forEach(s=>{
+      const div=document.createElement('div'); div.className='rem-item';
+      const modified=s.lastModifiedDateTime?new Date(s.lastModifiedDateTime).toLocaleString('de-DE'):'--';
+      div.innerHTML=`
+        <div class="rem-icon ok">
+          <svg viewBox="0 0 24 24" style="stroke:var(--green)"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="rem-body">
+          <div class="rem-name">${s.displayName}</div>
+          <div class="rem-meta">ID: ${s.id.substring(0,18)}...  |  Geaendert: ${modified}</div>
+        </div>
+        <span class="badge success">Aktiv</span>`;
+      container.appendChild(div);
+      addLog('Remediations',`Script: ${s.displayName}`,'ok');
+    });
+    document.getElementById('remCount').textContent=scripts.length;
+  } catch(e){ addLog('Remediations',`Fehler: ${e.message}`,'err'); }
+}
+
+async function fetchApps(token,cfg){
+  try {
+    addLog('Apps','Lade Win32 App Deployments...','inf');
+    const resp = await graphGet(token,
+      'https://graph.microsoft.com/v1.0/deviceAppManagement/mobileApps?$filter=isof(\'microsoft.graph.win32LobApp\')&$select=displayName,id,publishingState,createdDateTime');
+    const apps = resp.value||[];
+    const container = document.getElementById('appList');
+    container.innerHTML='';
+    if(!apps.length){
+      container.innerHTML='<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg><p>Keine Win32 Apps gefunden</p></div>';
+      return;
+    }
+    apps.forEach(a=>{
+      const div=document.createElement('div'); div.className='app-item';
+      const state_map={'published':'success','notPublished':'warn','processing':'info'};
+      const label_map={'published':'Veroeffentlicht','notPublished':'Nicht veroeffentlicht','processing':'Wird verarbeitet'};
+      const st = a.publishingState||'published';
+      div.innerHTML=`
+        <div class="app-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        </div>
+        <div class="app-info">
+          <div class="app-name">${a.displayName}</div>
+          <div class="app-id">${a.id.substring(0,20)}...</div>
+        </div>
+        <span class="badge ${state_map[st]||'neutral'}">${label_map[st]||st}</span>`;
+      container.appendChild(div);
+      addLog('Apps',`App: ${a.displayName} | Status: ${st}`,'ok');
+    });
+    document.getElementById('appCount').textContent=apps.length;
+  } catch(e){ addLog('Apps',`Fehler: ${e.message}`,'err'); }
+}
+
+async function fetchCompliance(token,cfg){
+  try {
+    const resp = await graphGet(token,
+      'https://graph.microsoft.com/v1.0/deviceManagement/managedDeviceOverview');
+    if(resp){
+      const compliant=resp.managedDeviceModelsAndManufacturers||null;
+      setBadge('sec-compliance','Daten geladen','success');
+      addLog('Compliance',`Verwaltete Geraete: ${resp.enrolledDeviceCount||0}`,'ok');
+    }
+  } catch(e){ addLog('Compliance',`Fehler: ${e.message}`,'err'); }
+}
+
+function setBadge(id, text, type){
+  const el=document.getElementById(id); if(!el) return;
+  el.className=`badge ${type}`;
+  el.textContent=text;
+}
+
+function exportData(){
+  const cfg = getConfig();
+  const exportObj={
+    exportTime: new Date().toISOString(),
+    version:'1.0.0',
+    config:{ tenant:cfg.tenant, computer:cfg.computer },
+    counts: state.counts,
+    device: state.device,
+    logs: state.logs.map(e=>({
+      timestamp: e.ts.toISOString(),
+      source: e.source,
+      level: e.level,
+      message: e.message
+    }))
+  };
+  const blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`IntuneMonitor_${new Date().toISOString().replace(/[:.]/g,'-').substring(0,19)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  addLog('Export',`${state.logs.length} Eintraege exportiert`,'ok');
+}
+
+function showImport(){
+  document.getElementById('importModal').style.display='flex';
+}
+
+function doImport(){
+  const file=document.getElementById('importFile').files[0];
+  if(!file){ addLog('Import','Keine Datei ausgewaehlt','wrn'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      const data=JSON.parse(e.target.result);
+      if(!data.logs){ addLog('Import','Ungueltiges Format','err'); return; }
+      clearLogs();
+      data.logs.forEach(entry=>{
+        addLog(entry.source||'Import',entry.message||'',entry.level||'inf',new Date(entry.timestamp));
+      });
+      addLog('Import',`${data.logs.length} Eintraege importiert | Export: ${data.exportTime||'--'}  | Geraet: ${data.config?.computer||'--'}`,'ok');
+      document.getElementById('importModal').style.display='none';
+    } catch(ex){ addLog('Import',`Parse-Fehler: ${ex.message}`,'err'); }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('importFile').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try {
+      const d=JSON.parse(ev.target.result);
+      const prev=document.getElementById('importPreview');
+      prev.style.display='block';
+      prev.textContent=`Exportzeit: ${d.exportTime||'--'}\nEintraege: ${d.logs?.length||0}\nFehler: ${d.counts?.errors||0}\nGeraet: ${d.config?.computer||'--'}`;
+    } catch{}
+  };
+  reader.readAsText(file);
+});
+
+function beep(){
+  try {
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator(); const g=ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.value=880; g.gain.value=0.1;
+    osc.start(); setTimeout(()=>{osc.stop();ctx.close();},200);
+  } catch{}
+}
+
+document.getElementById('intervalSlider')?.addEventListener('change',startAutoRefresh);
+
+addLog('Monitor','Intune Live Monitor gestartet','ok');
+addLog('Monitor','Bitte Tenant ID, Client ID und Client Secret eingeben','inf');
+addLog('Monitor','Dann Aktualisieren klicken um Daten zu laden','inf');
+startAutoRefresh();
+</script>
+</body>
+</html>
